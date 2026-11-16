@@ -2,7 +2,7 @@
 and the real GPRT tunnel server (gardepro_tunnel_server.py). No radios needed:
 the NetworkManager / iw helpers in tools/pi_radio_test.py are patched.
 
-Run from esp332_camera_bridge/:  .venv/bin/python -m unittest tests.test_desktop_bridge -v
+Run from bridge/:  .venv/bin/python -m unittest tests.test_desktop_bridge -v
 """
 
 from __future__ import annotations
@@ -24,6 +24,8 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# The server's GPRT tunnel receiver is the far end of the bridge's tunnel.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "server" / "tunnel"))
 
 from desktop_bridge import live as live_mod  # noqa: E402
 from desktop_bridge import server as server_mod  # noqa: E402

@@ -7,7 +7,7 @@ import os
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]          # esp332_camera_bridge/
+REPO_ROOT = Path(__file__).resolve().parents[1]          # trail_camera/bridge/
 DEFAULT_CONFIG_PATH = Path(os.environ.get("GARDEPRO_BRIDGE_CONFIG", "/etc/gardepro-bridge.json"))
 
 

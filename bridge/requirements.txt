@@ -1,0 +1,4 @@
+# Desktop bridge runtime (python -m desktop_bridge). Pinned to the versions in use.
+bleak==3.0.2
+dbus-fast==5.2.0
+requests==2.34.2

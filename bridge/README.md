@@ -57,7 +57,7 @@ sudo systemctl restart gardepro-desktop-bridge
 Settings: `/etc/gardepro-bridge.json` (template in
 `deploy/gardepro-bridge.example.json`; unit file in
 `deploy/gardepro-desktop-bridge.service`). Staged media and job state live in
-`../trail_staging/`.
+`/home/matheau/code/trail_test/trail_staging/` (set in `/etc/gardepro-bridge.json`).
 
 The HTTP API binds to the uplink address (`http_host: "uplink"` →
 192.168.1.41:18080) because `llama-server` already listens on
@@ -84,7 +84,7 @@ Foreground run for testing (no registration):
 ```
 
 End-to-end against a fake camera + upload server and the real
-`gardepro_tunnel_server.py` (REGISTER, live-view framing, photo trigger, full
+`../server/tunnel/gardepro_tunnel_server.py` (REGISTER, live-view framing, photo trigger, full
 download/delete/upload job). No radios needed.
 
 ## Differences from the firmware worth knowing

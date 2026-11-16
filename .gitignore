@@ -1,5 +1,6 @@
 .claude/
 .codex
+.venv/
 .venv-androguard/
 __pycache__/
 *.pyc
@@ -7,10 +8,17 @@ __pycache__/
 *.swp
 *.swo
 
-# Local board/network config
-gardepro_dual_radio_bridge/local_config.h
-stream_test/local_config.h
-sd_status_logger/local_config.h
+# Bridge runtime data (staged camera media, job state, radio test output)
+trail_staging/
+radio_test_runs/
+*.log
+
+# Local board/network config (Wi-Fi credentials), anywhere in the tree
+local_config.h
+
+# Arduino build output. Compiled firmware embeds the Wi-Fi credentials from
+# local_config.h, so it must never be committed.
+legacy/esp32/**/build/
 
 # Large local reverse-engineering artifacts
 *.apk
@@ -24,11 +32,4 @@ photo_*.jpg
 phone_crack.txt
 onboard_camera_tests/
 sd_card_transfer_*/
-
-# Local extracted APK contents
 apk_extract/
-
-# Arduino build output. Compiled firmware embeds the Wi-Fi credentials from
-# local_config.h, so it must never be committed.
-gardepro_dual_radio_bridge/build/
-.venv/

@@ -1,6 +1,6 @@
 [Unit]
 Description=GardePro trail-camera bridge (desktop replacement for the ESP32 firmware)
-Documentation=file:///home/matheau/code/trail_test/esp332_camera_bridge/DESKTOP_BRIDGE.md
+Documentation=file:///home/matheau/code/trail_camera/bridge/README.md
 Wants=network-online.target bluetooth.service
 After=network-online.target NetworkManager.service bluetooth.service
 
@@ -11,10 +11,10 @@ NotifyAccess=main
 # `sudo -n` (passwordless sudo) and BLE goes through BlueZ over D-Bus.
 User=matheau
 Group=matheau
-WorkingDirectory=/home/matheau/code/trail_test/esp332_camera_bridge
+WorkingDirectory=/home/matheau/code/trail_camera/bridge
 Environment=PYTHONUNBUFFERED=1
 Environment=GARDEPRO_BRIDGE_CONFIG=/etc/gardepro-bridge.json
-ExecStart=/home/matheau/code/trail_test/esp332_camera_bridge/.venv/bin/python -m desktop_bridge
+ExecStart=/home/matheau/code/trail_camera/bridge/.venv/bin/python -m desktop_bridge
 Restart=on-failure
 RestartSec=10
 WatchdogSec=120

@@ -1,56 +1,34 @@
-# ESP32 Camera Bridge
+# Trail Camera
 
-This repository contains the current GardePro ESP32 bridge work:
+Bridge and server for GardePro trail cameras (E6+, E6). The bridge wakes a
+camera over Bluetooth, joins its Wi-Fi hotspot, downloads and deletes media,
+and uploads it to the server. The server stores the media and data, and runs
+the web UI.
 
-- `gardepro_dual_radio_bridge/`
-  - ESP32 dual-radio bridge sketch
-- `gardepro_camera_discovery/`
-  - small USB-serial firmware for profiling another GardePro camera model before adding it to the main bridge
-- `gardepro_server_api.py`
-  - Python client for the board HTTP bridge
-- `gardepro_server_jobs.py`
-  - small server-facing short-session job layer
-- `gardepro_server_control.py`
-  - CLI wrapper for live control and validation
-- `gardepro_tunnel_server.py`
-  - receiver for the framed tunnel stream
-- `gardepro_web_server.py`
-  - Flask browser/API server for the operator UI
-- `templates/`
-  - Flask HTML templates for the server UI
-- `static/`
-  - CSS and browser JS for the server UI
-- `BRIDGE_USAGE.md`
-  - current operator notes and validation workflow
-- `LAPTOP_FIELD_SETUP.md`
-  - setup guide for a Windows/WSL laptop that can debug, build, and flash the HT-HC33 board
-- `CURRENT_WORK_HANDOFF.md`
-  - current problem statement, flashed firmware state, findings, and next work
-- `gardepro_dual_radio_bridge/BOARD_HTTP_API.md`
-  - current board HTTP API reference for status, onboard media, scanner/upload, OTA, and trail-camera proxy routes
-- `CAMERA_RETURN_CHECKLIST.md`
-  - resume checklist for when the camera has power again
-- `SERVER_SIDE_PLAN.md`
-  - next-phase plan for the local web service and UI
-- `SERVER_API_SPEC.md`
-  - route-by-route server API contract and bridge/job mapping
-- `UNIFIED_FIRMWARE_API_REQUIREMENTS.md`
-  - server API requirements for the unified scanner/camera/battery firmware uploads
-- `SERVER_DEPLOYMENT_HANDOFF.md`
-  - runtime/deployment notes for doing the server work on another machine
+```
+camera  <-- BLE wake / camera Wi-Fi -->  bridge  <-- LAN (HTTP + GPRT tunnel) -->  server
+```
 
-## Local Config
+## Layout
 
-The published tree does not include local network credentials.
+| Path | What it is |
+|---|---|
+| [`bridge/`](bridge/README.md) | Desktop bridge service (`python -m desktop_bridge`), the job/radio tools it uses, tests, and the systemd unit. Runs on the bridge machine. |
+| [`server/`](server/README.md) | Server side (PHP API, MySQL, GPRT tunnel receiver) at `192.168.1.42`. |
+| `docs/` | Camera protocol findings, plans, and handoff notes. |
+| `legacy/esp32/` | The original ESP32 (HT-HC33) bridge firmware, board experiments, and the early Python server. Kept for reference; not deployed. |
 
-Create these local files from the provided examples:
+## Bridge quick start
 
-- `gardepro_dual_radio_bridge/local_config.h`
-- `stream_test/local_config.h`
+```bash
+cd bridge
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m unittest discover -s tests      # no radios needed
+```
 
-## Notes
+Deployment and operation: [`bridge/README.md`](bridge/README.md).
 
-- The trail-camera hotspot password remains in the repo because it is the vendor default for the device under test.
-- Large local reverse-engineering artifacts and machine-specific files are ignored by git.
-- The current server-side direction is short-lived on-demand sessions, not permanent camera connectivity.
-- The current Flask web server is intentionally small and serves the browser UI plus the API used by that UI; it does not talk to the camera directly from the browser.
+## History
+
+Moved from `aboxfulloftide/esp332_camera_bridge` with full history; files were
+reorganized into the layout above (`git log --follow <path>` traces them back).
