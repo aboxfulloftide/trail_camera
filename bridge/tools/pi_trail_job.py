@@ -14,7 +14,6 @@ Phase 2 (server, over wlan0/hoth):
 All state lives in <job_dir>/job_state.json and is saved after every step, so a
 job can be resumed with --resume <job_dir>.
 
-Rules follow RASPBERRY_PI_PORT_PLAN.md ("Durable-job rules to port").
 """
 
 from __future__ import annotations

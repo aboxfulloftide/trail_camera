@@ -20,10 +20,6 @@ local_config.h
 server/api/mysql
 server/api/storage/
 
-# Arduino build output. Compiled firmware embeds the Wi-Fi credentials from
-# local_config.h, so it must never be committed.
-legacy/esp32/**/build/
-
 # Large local reverse-engineering artifacts
 *.apk
 *.pcap

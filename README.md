@@ -16,7 +16,6 @@ camera  <-- BLE wake / camera Wi-Fi -->  bridge  <-- LAN (HTTP + GPRT tunnel) --
 | [`bridge/`](bridge/README.md) | Desktop bridge service (`python -m desktop_bridge`), the job/radio tools it uses, tests, and the systemd unit. Runs on the bridge machine. |
 | [`server/`](server/README.md) | Server side (PHP API, MySQL, GPRT tunnel receiver) at `192.168.1.42`. |
 | `docs/` | Camera protocol findings, plans, and handoff notes. |
-| `legacy/esp32/` | The original ESP32 (HT-HC33) bridge firmware, board experiments, and the early Python server. Kept for reference; not deployed. |
 
 ## Bridge quick start
 
@@ -32,3 +31,5 @@ Deployment and operation: [`bridge/README.md`](bridge/README.md).
 
 Moved from `aboxfulloftide/esp332_camera_bridge` with full history; files were
 reorganized into the layout above (`git log --follow <path>` traces them back).
+The earlier ESP32 firmware and Raspberry Pi work were removed from this repo and
+remain in that repo.

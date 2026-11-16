@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Raspberry Pi radio test for the GardePro E6+ trail camera.
 
-Step 1 of RASPBERRY_PI_PORT_PLAN.md: BLE wake, join the camera hotspot on the
+BLE wake, join the camera hotspot on the
 USB adapter, list the gallery, download one video, and report camera RSSI and
 throughput so they can be compared with the ESP32 bridge (-90 to -97 dBm,
 about 47 KB per connection).
