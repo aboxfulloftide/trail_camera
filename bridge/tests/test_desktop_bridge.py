@@ -352,6 +352,9 @@ class DesktopBridgeTests(unittest.TestCase):
         self.assertTrue(s["ok"])
         self.assertEqual(s["camera_target_id"], "e6_original")
         t = self.get("/camera/target").json()["target"]
+        top = self.get("/camera/target").json()           # firmware shape, read by the server
+        self.assertEqual(top["active"], t["active"])
+        self.assertEqual(top["profiles"], t["profiles"])
         self.assertEqual(t["active"]["wifi_ssid"], "CAM8Z8_A4C138982635")
         self.assertEqual(self.post("/camera/target?id=nope").status_code, 400)
         r = self.post("/camera/target", json={"id": "e6_plus"})

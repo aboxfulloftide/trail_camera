@@ -242,8 +242,15 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, self.b.control.session_json())
 
     # ------------------------------------------------------------------ camera target
+    def _target_payload(self) -> dict:
+        # "active"/"profiles" are also at the top level (the firmware's shape):
+        # the server's camera_profile_prefix() reads them there to name uploaded
+        # media after the selected camera, and falls back to "camera_" otherwise.
+        t = self.b.radio.target_json()
+        return {"ok": True, "target": t, "active": t["active"], "profiles": t["profiles"]}
+
     def r_camera_target_get(self, path, q, body):
-        self._send(200, {"ok": True, "target": self.b.radio.target_json()})
+        self._send(200, self._target_payload())
 
     def r_camera_target_post(self, path, q, body):
         b = self.b
@@ -262,7 +269,7 @@ class Handler(BaseHTTPRequestHandler):
                              "target": b.radio.target_json()})
             return
         b.radio.set_camera(cam)
-        self._send(200, {"ok": True, "target": b.radio.target_json()})
+        self._send(200, self._target_payload())
 
     # ------------------------------------------------------------------ camera proxy
     def _camera_ready(self) -> bool:
