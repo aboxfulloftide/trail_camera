@@ -155,10 +155,37 @@ def identity(item: dict) -> str:
     return f"{item['id']}|{item['type']}|{item.get('size', 0)}|{item.get('date', '')}|{item.get('uid', '')}"
 
 
-def staged_name(item: dict) -> str:
+# Staged filename prefix per camera. Both cameras reuse item IDs and timestamps
+# look alike, so the prefix is what tells an E6 file from an E6+ file by name.
+FILE_PREFIX = {"e6_plus": "E6P", "e6_original": "E6"}
+
+
+def staged_name(item: dict, camera: str) -> str:
     stamp = (item.get("date") or "").replace("-", "").replace(":", "").replace(" ", "_") or "nodate"
     ext = "jpg" if int(item["type"]) == 1 else "mp4"
-    return f"E6P_{stamp}_{item['id']}.{ext}"
+    return f"{FILE_PREFIX.get(camera, camera)}_{stamp}_{item['id']}.{ext}"
+
+
+def job_camera(job_dir: Path) -> str | None:
+    """Which camera a staging job directory belongs to, or None if unknown.
+
+    Job directories are named job_<stamp>_<camera>. Older CLI runs used
+    job_<stamp>; for those the camera comes from the run args in job_state.json,
+    and runs recorded before the --camera option existed were E6+ only."""
+    for cam in prt.CAMERAS:
+        if job_dir.name.endswith("_" + cam):
+            return cam
+    try:
+        runs = json.loads((job_dir / "job_state.json").read_text()).get("runs", [])
+    except (OSError, ValueError):
+        return None
+    cams = {r["args"].get("camera") for r in runs if isinstance(r.get("args"), dict)}
+    cams.discard(None)
+    if len(cams) == 1:
+        return cams.pop()
+    if not cams and any(isinstance(r.get("args"), dict) for r in runs):
+        return "e6_plus"
+    return None
 
 
 # --------------------------------------------------------------------------- camera helpers
@@ -337,7 +364,7 @@ def camera_phase(args, job_dir: Path, st: JobState, progress: dict | None = None
         for it in items:
             key = identity(it)
             st.items.setdefault(key, {"item": it, "status": "pending", "attempts": 0,
-                                      "file": staged_name(it)})
+                                      "file": staged_name(it, args.camera)})
         st.save()
 
         todo = sorted((k for k, v in st.items.items() if v["status"] in ("pending", "downloaded", "verified")),
@@ -578,7 +605,7 @@ def main() -> int:
     log(f"Camera: {args.camera} BLE {prt.CAMERA_BLE_MAC} SSID {prt.CAMERA_SSID} profile {prt.CAMERA_NM_PROFILE}")
     args.force_11b = False  # used by pi_radio_test.ensure_camera_link
 
-    job_dir = args.resume or (args.staging / datetime.now().strftime("job_%Y%m%d-%H%M%S"))
+    job_dir = args.resume or (args.staging / f"job_{datetime.now():%Y%m%d-%H%M%S}_{args.camera}")
     job_dir.mkdir(parents=True, exist_ok=True)
     st = JobState(job_dir)
     st.data.setdefault("runs", []).append({"started": datetime.now().isoformat(timespec="seconds"),

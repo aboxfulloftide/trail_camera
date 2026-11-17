@@ -384,7 +384,14 @@ class Handler(BaseHTTPRequestHandler):
                          "upload": b.jobs.upload})
 
     def r_trail_media_files(self, path, q, body):
-        self._send(200, {"items": self.b.jobs.staged_files()})
+        # Default: only the selected camera's files (the server labels pulled
+        # files by the selected camera). ?camera=<id> or ?camera=all overrides.
+        camera = q.get("camera") or None
+        if camera and camera != "all" and camera not in prt.CAMERAS:
+            self._send(400, {"error": "unknown_camera", "cameras": sorted(prt.CAMERAS) + ["all"]})
+            return
+        self._send(200, {"camera": camera or self.b.jobs.radio.camera,
+                         "items": self.b.jobs.staged_files(camera)})
 
     def r_trail_media_file(self, path, q, body):
         rel = urllib.parse.unquote(path[len("/trail-media/file/"):])

@@ -200,7 +200,7 @@ class Jobs:
             return
         self.upload.update(state="uploading", blocked_reason=None)
         for d in pending_dirs:
-            cam = next((c for c in prt.CAMERAS if d.name.endswith("_" + c)), self.radio.camera)
+            cam = ptj.job_camera(d) or self.radio.camera
             args = self.radio.args(camera=cam)
             if self.job.get("status") in ("queued",) or self.stop_evt.is_set():
                 break                                          # camera jobs have priority
@@ -262,12 +262,19 @@ class Jobs:
             "staging_directory": j.get("job_dir", str(self.staging)),
         }
 
-    def staged_files(self) -> list[dict]:
+    def staged_files(self, camera: str | None = None) -> list[dict]:
+        """Staged media for one camera (default: the selected camera), or every
+        camera when camera == "all". The server names pulled files after the
+        selected camera, so listing other cameras' files here mislabels them."""
+        camera = camera or self.radio.camera
         out = []
-        for d in sorted(self.staging.glob("job_*")):
+        for d in sorted(p for p in self.staging.glob("job_*") if p.is_dir()):
+            cam = ptj.job_camera(d)
+            if camera != "all" and cam != camera:
+                continue
             for f in sorted(d.iterdir()):
                 if f.suffix.lower() in (".jpg", ".mp4") and f.is_file():
-                    out.append({"filename": f.name, "bytes": f.stat().st_size, "job": d.name,
+                    out.append({"filename": f.name, "bytes": f.stat().st_size, "job": d.name, "camera": cam,
                                 "url": f"/trail-media/file/{d.name}/{f.name}"})
         return out
 

@@ -453,6 +453,10 @@ class DesktopBridgeTests(unittest.TestCase):
         self.assertFalse(any(k.startswith("_") for k in c))
         files = self.get("/trail-media/files").json()["items"]
         self.assertEqual(len(files), n_items)
+        # E6 files are named E6_..., never E6P_ (the E6+ prefix), and carry their camera.
+        self.assertTrue(all(f["filename"].startswith("E6_") for f in files), files)
+        self.assertTrue(all(f["camera"] == "e6_original" for f in files), files)
+        self.assertTrue(all(m["filename"].startswith("E6_") for m in self.world.uploads.values()))
         self.assertEqual(self.get(files[0]["url"]).content[:2], b"\xff\xd8")
         self.assertEqual(self.get("/trail-media/file/../../etc/passwd").status_code, 404)
 
@@ -490,6 +494,37 @@ class DesktopBridgeTests(unittest.TestCase):
         self.assertEqual(md["type"], "register")
         self.assertEqual(md["halow_ip"], "127.0.0.1")
         self.assertEqual(md["hostname"], "trail_desktop")
+
+    def test_08_staged_files_only_for_selected_camera(self):
+        """The server labels pulled files with the selected camera, so the listing
+        must never include another camera's staged files."""
+        staging = self.bridge.jobs.staging
+        plus = staging / "job_20261101-070000_e6_plus"
+        plus.mkdir(parents=True, exist_ok=True)
+        (plus / "E6P_20261101_010101_1.mp4").write_bytes(b"\x00" * 10)
+        old = staging / "job_20261101-060000"                   # pre --camera CLI run: E6+
+        old.mkdir(parents=True, exist_ok=True)
+        (old / "job_state.json").write_text(json.dumps({"items": {}, "runs": [{"args": {"cam_iface": "x"}}]}))
+        (old / "E6P_20261101_000000_9.jpg").write_bytes(jpeg(100, 9))
+        try:
+            self.assertEqual(self.post("/camera/target?id=e6_original").status_code, 200)
+            body = self.get("/trail-media/files").json()
+            self.assertEqual(body["camera"], "e6_original")
+            self.assertTrue(body["items"] and all(i["camera"] == "e6_original" for i in body["items"]), body)
+            self.assertFalse(any(i["job"] in (plus.name, old.name) for i in body["items"]))
+
+            plus_items = self.get("/trail-media/files?camera=e6_plus").json()["items"]
+            self.assertEqual(sorted(i["filename"] for i in plus_items),
+                             ["E6P_20261101_000000_9.jpg", "E6P_20261101_010101_1.mp4"])
+
+            self.post("/camera/target?id=e6_plus")
+            self.assertEqual(len(self.get("/trail-media/files").json()["items"]), 2)
+
+            everything = self.get("/trail-media/files?camera=all").json()["items"]
+            self.assertEqual({i["camera"] for i in everything}, {"e6_original", "e6_plus"})
+            self.assertEqual(self.get("/trail-media/files?camera=nope").status_code, 400)
+        finally:
+            self.post("/camera/target?id=e6_original")
 
 
 if __name__ == "__main__":
