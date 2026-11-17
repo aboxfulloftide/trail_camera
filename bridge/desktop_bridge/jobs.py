@@ -36,6 +36,8 @@ class Jobs:
         self.progress: dict = {}
         self.upload = {"state": "idle", "uploaded": 0, "failed": 0, "bytes": 0, "last_sweep_at": None,
                        "last_error": None, "blocked_reason": None, "pending": 0}
+        self.cleanup = {"retention_days": cfg.media_retention_days, "last_run_at": None, "deleted": 0,
+                        "freed_bytes": 0, "kept_not_uploaded": 0, "last_error": None}
         self.job = self._load()
         if self.job.get("status") == "running":      # service restarted mid-job: resume it
             self.job["status"] = "queued"
@@ -85,6 +87,7 @@ class Jobs:
     # ------------------------------------------------------------------ worker
     def _run(self) -> None:
         next_sweep = 0.0
+        next_cleanup = time.time() + 60          # first cleanup a minute after start
         while not self.stop_evt.is_set():
             st = self.job.get("status")
             due = st == "queued" or (st == "waiting_retry" and time.time() >= (self.job.get("next_retry_at") or 0))
@@ -95,6 +98,13 @@ class Jobs:
             if time.time() >= next_sweep and st not in ACTIVE:
                 self._sweep_uploads()
                 next_sweep = time.time() + self.cfg.upload_sweep_s
+            if time.time() >= next_cleanup and self.job.get("status") not in ACTIVE:
+                try:
+                    self.cleanup_staged_media()
+                except Exception as e:  # noqa: BLE001
+                    self.cleanup["last_error"] = f"{type(e).__name__}: {e}"
+                    log(f"Cleanup: error {self.cleanup['last_error']}")
+                next_cleanup = time.time() + self.cfg.cleanup_interval_s
             self.wake.wait(5)
             self.wake.clear()
 
@@ -261,6 +271,45 @@ class Jobs:
             "battery_mv": None, "minimum_battery_mv": None, "recovery_battery_mv": None,
             "staging_directory": j.get("job_dir", str(self.staging)),
         }
+
+    def cleanup_staged_media(self, now: float | None = None) -> dict:
+        """Delete staged media older than media_retention_days (by download time,
+        i.e. file mtime) that the bridge has a verified upload for. Files that were
+        never uploaded, or that job_state.json does not track, are kept."""
+        days = float(self.cfg.media_retention_days or 0)
+        res = {"deleted": 0, "freed_bytes": 0, "kept_not_uploaded": 0}
+        if days <= 0:
+            return res
+        cutoff = (now or time.time()) - days * 86400
+        for d in sorted(p for p in self.staging.glob("job_*") if p.is_dir()):
+            if self.job.get("status") in ACTIVE or self.stop_evt.is_set():
+                break                                    # a camera job started: stop here
+            if not (d / "job_state.json").exists():
+                continue
+            st = ptj.JobState(d)
+            changed = False
+            for rec in st.items.values():
+                f = d / rec.get("file", "")
+                if not rec.get("file") or not f.is_file() or f.stat().st_mtime > cutoff:
+                    continue
+                if not rec.get("uploaded"):
+                    res["kept_not_uploaded"] += 1
+                    continue
+                size = f.stat().st_size
+                f.unlink()
+                rec["purged_at"] = datetime.now().isoformat(timespec="seconds")
+                res["deleted"] += 1
+                res["freed_bytes"] += size
+                changed = True
+            if changed:
+                st.save()
+        self.cleanup.update(last_run_at=time.time(), last_error=None, kept_not_uploaded=res["kept_not_uploaded"])
+        self.cleanup["deleted"] += res["deleted"]
+        self.cleanup["freed_bytes"] += res["freed_bytes"]
+        if res["deleted"] or res["kept_not_uploaded"]:
+            log(f"Cleanup: deleted {res['deleted']} staged file(s) older than {days:g} days "
+                f"({res['freed_bytes'] / 1e9:.2f} GB); kept {res['kept_not_uploaded']} not yet uploaded")
+        return res
 
     def staged_files(self, camera: str | None = None) -> list[dict]:
         """Staged media for one camera (default: the selected camera), or every

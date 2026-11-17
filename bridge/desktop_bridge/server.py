@@ -415,7 +415,7 @@ class Handler(BaseHTTPRequestHandler):
             shutil.copyfileobj(f, self.wfile, 65536)
 
     def r_upload_status(self, path, q, body):
-        self._send(200, {"ok": True, "trail_media": self.b.jobs.upload,
+        self._send(200, {"ok": True, "trail_media": self.b.jobs.upload, "cleanup": self.b.jobs.cleanup,
                          "register": self.b.registrar.status() if self.b.registrar else {"enabled": False}})
 
 

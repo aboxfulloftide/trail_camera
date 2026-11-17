@@ -46,6 +46,10 @@ class Config:
     retry_backoff_s: int = 900           # firmware: every 15 min after 3 quick retries
     retry_give_up_s: int = 3 * 3600      # firmware: fail after ~3 h of consecutive failures
     upload_sweep_s: int = 30
+    # Local cleanup: delete staged media this many days after download, but only
+    # once the bridge has a verified upload of it. 0 disables the cleanup.
+    media_retention_days: float = 7
+    cleanup_interval_s: int = 3600
 
     # Live view
     media_port_primary: int = 25748

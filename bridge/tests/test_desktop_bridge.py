@@ -529,6 +529,33 @@ class DesktopBridgeTests(unittest.TestCase):
         finally:
             self.post("/camera/target?id=e6_original")
 
+    def test_09_cleanup_deletes_only_old_uploaded_media(self):
+        d = self.bridge.jobs.staging / "job_20261001-070000_e6_plus"
+        d.mkdir(parents=True, exist_ok=True)
+        old = time.time() - 8 * 86400
+        files = {"old_up.jpg": True, "old_not_up.jpg": False, "new_up.jpg": True}
+        items = {}
+        for i, (name, uploaded) in enumerate(files.items()):
+            (d / name).write_bytes(b"x" * 100)
+            items[str(i)] = {"file": name, "status": "deleted", "item": {"id": i, "type": 1},
+                             **({"uploaded": {"media_id": i, "at": "2026-10-01T07:00:00"}} if uploaded else {})}
+        (d / "job_state.json").write_text(json.dumps({"items": items, "events": [], "runs": []}))
+        (d / "stray.jpg").write_bytes(b"x")                     # not tracked by job_state: kept
+        for name in ("old_up.jpg", "old_not_up.jpg", "stray.jpg"):
+            os.utime(d / name, (old, old))
+
+        res = self.bridge.jobs.cleanup_staged_media()
+        self.assertGreaterEqual(res["deleted"], 1)
+        self.assertFalse((d / "old_up.jpg").exists())
+        self.assertTrue((d / "old_not_up.jpg").exists())
+        self.assertTrue((d / "new_up.jpg").exists())
+        self.assertTrue((d / "stray.jpg").exists())
+        self.assertTrue((d / "job_state.json").exists())
+        st = json.loads((d / "job_state.json").read_text())["items"]
+        self.assertIn("purged_at", st["0"])
+        self.assertNotIn("purged_at", st["1"])
+        self.assertIn("cleanup", self.get("/upload/status").json())
+
 
 if __name__ == "__main__":
     unittest.main()
