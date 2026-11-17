@@ -157,7 +157,7 @@ def identity(item: dict) -> str:
 
 # Staged filename prefix per camera. Both cameras reuse item IDs and timestamps
 # look alike, so the prefix is what tells an E6 file from an E6+ file by name.
-FILE_PREFIX = {"e6_plus": "E6P", "e6_original": "E6"}
+FILE_PREFIX = {"e6_plus": "E6P", "e6_original": "e6_original"}
 
 
 def staged_name(item: dict, camera: str) -> str:

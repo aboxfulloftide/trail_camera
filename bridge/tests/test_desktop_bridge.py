@@ -453,10 +453,10 @@ class DesktopBridgeTests(unittest.TestCase):
         self.assertFalse(any(k.startswith("_") for k in c))
         files = self.get("/trail-media/files").json()["items"]
         self.assertEqual(len(files), n_items)
-        # E6 files are named E6_..., never E6P_ (the E6+ prefix), and carry their camera.
-        self.assertTrue(all(f["filename"].startswith("E6_") for f in files), files)
+        # E6 files are named e6_original_..., never E6P_ (the E6+ prefix), and carry their camera.
+        self.assertTrue(all(f["filename"].startswith("e6_original_") for f in files), files)
         self.assertTrue(all(f["camera"] == "e6_original" for f in files), files)
-        self.assertTrue(all(m["filename"].startswith("E6_") for m in self.world.uploads.values()))
+        self.assertTrue(all(m["filename"].startswith("e6_original_") for m in self.world.uploads.values()))
         self.assertEqual(self.get(files[0]["url"]).content[:2], b"\xff\xd8")
         self.assertEqual(self.get("/trail-media/file/../../etc/passwd").status_code, 404)
 
