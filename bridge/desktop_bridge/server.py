@@ -260,6 +260,11 @@ class Handler(BaseHTTPRequestHandler):
         if b.live.active or b.control.active:
             self._send(409, {"ok": False, "error": "camera_busy"})
             return
+        if b.jobs.upload.get("state") == "uploading":
+            # The server names uploads after the selected camera: switching now
+            # would label the rest of this upload sweep with the wrong camera.
+            self._send(409, {"ok": False, "error": "upload_active"})
+            return
         cam = q.get("id", "")
         if not cam and q.get("ble_mac"):
             cam = next((c for c, (m, _, _) in prt.CAMERAS.items() if m.lower() == q["ble_mac"].lower()), "")

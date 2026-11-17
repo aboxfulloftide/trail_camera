@@ -35,7 +35,7 @@ class Jobs:
         self.stop_evt = threading.Event()
         self.progress: dict = {}
         self.upload = {"state": "idle", "uploaded": 0, "failed": 0, "bytes": 0, "last_sweep_at": None,
-                       "last_error": None, "blocked_reason": None, "pending": 0}
+                       "last_error": None, "blocked_reason": None, "pending": 0, "waiting_for_camera_selection": 0}
         self.cleanup = {"retention_days": cfg.media_retention_days, "last_run_at": None, "deleted": 0,
                         "freed_bytes": 0, "kept_not_uploaded": 0, "last_error": None}
         self.job = self._load()
@@ -184,9 +184,16 @@ class Jobs:
             return False
 
     def _sweep_uploads(self) -> None:
-        """Upload verified files from any job directory that have not been uploaded yet."""
+        """Retry uploads of verified files that have not been uploaded yet.
+
+        Only the selected camera's job directories are retried: the server names
+        an uploaded file after the camera the bridge has selected at upload time,
+        so uploading another camera's file now would mislabel it. Those wait until
+        their camera is selected again (the server switches cameras every run).
+        Camera switches are refused while a sweep is uploading."""
         self.upload["last_sweep_at"] = time.time()
-        pending_dirs, pending = [], 0
+        selected = self.radio.camera
+        pending_dirs, pending, other = [], 0, 0
         for state_file in sorted(self.staging.glob("job_*/job_state.json")):
             try:
                 data = json.loads(state_file.read_text())
@@ -198,10 +205,15 @@ class Jobs:
                     and (state_file.parent / v["file"]).exists())
             # upload_phase also sends unsent camera connection records (incl. failed attempts).
             unsent_conns = any(not c.get("sent") for c in data.get("camera_connections", []))
-            if n or unsent_conns:
-                pending += n
-                pending_dirs.append(state_file.parent)
+            if not (n or unsent_conns):
+                continue
+            if ptj.job_camera(state_file.parent) != selected:
+                other += n                                   # wait for that camera to be selected
+                continue
+            pending += n
+            pending_dirs.append(state_file.parent)
         self.upload["pending"] = pending
+        self.upload["waiting_for_camera_selection"] = other
         if not pending_dirs:
             self.upload.update(state="idle", blocked_reason=None)
             return
@@ -210,8 +222,9 @@ class Jobs:
             return
         self.upload.update(state="uploading", blocked_reason=None)
         for d in pending_dirs:
-            cam = ptj.job_camera(d) or self.radio.camera
-            args = self.radio.args(camera=cam)
+            if self.radio.camera != selected:
+                break                                          # never upload under another camera
+            args = self.radio.args(camera=selected)
             if self.job.get("status") in ("queued",) or self.stop_evt.is_set():
                 break                                          # camera jobs have priority
             try:

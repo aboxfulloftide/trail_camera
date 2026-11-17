@@ -556,6 +556,41 @@ class DesktopBridgeTests(unittest.TestCase):
         self.assertNotIn("purged_at", st["1"])
         self.assertIn("cleanup", self.get("/upload/status").json())
 
+    def test_10_upload_retry_only_for_selected_camera(self):
+        """A failed upload is retried only while its own camera is selected (the
+        server names uploads after the selected camera), and the camera cannot be
+        switched while a retry sweep is uploading."""
+        jobs = self.bridge.jobs
+        d = jobs.staging / "job_20261002-070000_e6_plus"
+        d.mkdir(parents=True, exist_ok=True)
+        data = jpeg(4000, 77)
+        (d / "E6P_20261002_070000_77.jpg").write_bytes(data)
+        (d / "job_state.json").write_text(json.dumps({"events": [], "runs": [], "items": {"k": {
+            "file": "E6P_20261002_070000_77.jpg", "status": "verified", "attempts": 1,
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "item": {"id": 77, "type": 1, "size": len(data), "date": "2026-10-02 07:00:00", "uid": "u77"}}}}))
+        uploaded = lambda: [m for m in self.world.uploads.values() if m["filename"] == "E6P_20261002_070000_77.jpg"]
+        try:
+            self.assertEqual(self.post("/camera/target?id=e6_original").status_code, 200)
+            jobs._sweep_uploads()
+            self.assertEqual(uploaded(), [])
+            self.assertGreaterEqual(jobs.upload["waiting_for_camera_selection"], 1)
+
+            jobs.upload["state"] = "uploading"                    # a sweep in progress
+            r = self.post("/camera/target?id=e6_plus")
+            self.assertEqual(r.status_code, 409)
+            self.assertEqual(r.json()["error"], "upload_active")
+            jobs.upload["state"] = "idle"
+
+            self.assertEqual(self.post("/camera/target?id=e6_plus").status_code, 200)
+            jobs._sweep_uploads()
+            self.assertEqual(len(uploaded()), 1)
+            self.assertEqual(uploaded()[0]["metadata"]["camera_profile"], "e6_plus")
+            self.assertTrue(json.loads((d / "job_state.json").read_text())["items"]["k"].get("uploaded"))
+        finally:
+            jobs.upload["state"] = "idle"
+            self.post("/camera/target?id=e6_original")
+
 
 if __name__ == "__main__":
     unittest.main()
